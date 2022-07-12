@@ -1,0 +1,1 @@
+vlog.exe -f /home/christians/git/UART16550-Playground/vfiles/uart_top_tb.vfile -outf /home/christians/git/UART16550-Playground/OUTPUT/vlog.args -l /home/christians/git/UART16550-Playground/OUTPUT/vlog.log -work /home/christians/git/UART16550-Playground/OUTPUT/work -skipsynthoffregion -lint -source -warning [] -fatal [] -note [] -error [] -suppress 2275
