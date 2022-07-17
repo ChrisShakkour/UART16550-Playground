@@ -7,7 +7,7 @@
 `include "uart_defines.v"
 // synopsys translate_on
 
-`timescale 1ns/1ps
+`timescale 1ns/10ps
 
 interface wishbone;   
    logic                        clk;
@@ -117,7 +117,7 @@ module uart_top_tb;
       wb.address='0;
       wb.data_out='0;
       wb.we='0;
-      wb.tb='0;
+      wb.stb='0;
       wb.cyc='0;
       wb.sel='0;
       // UART HOST TO DEVICE TX line
