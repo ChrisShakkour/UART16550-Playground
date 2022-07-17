@@ -131,9 +131,9 @@
 // Initial revision
 //
 //
-// synopsys translate_off
-`include "timescale.v"
-// synopsys translate_on
+
+`timescale 1ns/10ps
+
 
 `include "uart_defines.v"
 
