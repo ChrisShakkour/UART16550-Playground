@@ -1,2 +1,3 @@
+./src/timescale.v
 -f ./vfiles/uart_top_rtl.vfile
 -sv ./tb/uart_top_tb.sv
