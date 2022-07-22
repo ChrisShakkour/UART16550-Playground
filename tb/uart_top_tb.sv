@@ -55,7 +55,9 @@ module uart_top_tb;
    localparam integer BUADRATE=9200;      //[] bits per sec
    localparam integer NANOSECOND=1e+9;
    localparam         UART_BIT_PERIOD=(NANOSECOND/BUADRATE);
-
+   localparam integer UART_ACK_TIMEOUT=5;
+   
+   
    // wishbone params
    localparam integer  ADDR_W=3;
    localparam integer  DATA_W=8;
@@ -156,6 +158,28 @@ module uart_top_tb;
       uart_master_tx=1'b1;       
    endtask // init_signals
 
+
+   task wait_for_ack();
+      fork
+	 // THREAD 1
+	 // assert ack recieved
+	 begin
+	    while(!wb.ack)
+	      @(posedge wb.clk);
+	    print("wishbone Ack recieved");
+	 end
+	 // THREAD 2
+	 // Ack timeout
+	 begin
+	    for(int i=0; i<UART_ACK_TIMEOUT; i++)
+	      @(posedge wb.clk);
+	    print("wishbone Ack timeout");
+	 end
+      join_any;
+      disable fork;
+   endtask // wishbone_write
+   
+   
    
    task wishbone_write;
       input logic [ADDR_W-1:0] address;
@@ -168,8 +192,10 @@ module uart_top_tb;
       wb.stb=1'b1;  //chipselect
       wb.cyc=1'b1;  //valid cycle    
       delay(1);
+      wb.we=1'b0;   //write
       wb.stb=1'b0;  //chipselect
-      wb.cyc=1'b0;  //valid cycle    
+      wb.cyc=1'b0;  //valid cycle
+      wait_for_ack();
    endtask // wishbone_write
 
    
@@ -184,6 +210,7 @@ module uart_top_tb;
       delay(1);
       wb.stb=1'b0;  //chipselect
       wb.cyc=1'b0;  //valid cycle    
+      wait_for_ack();
    endtask // wishbone_read
 
    
@@ -192,15 +219,28 @@ module uart_top_tb;
       print("Configuring UART engine");
       @(posedge wb.clk);
       for(int i=0; i<8; i++) begin
+
 	 address = $random();
-	 //wishbone_write(address, $random());
-	 //delay(3);
+	 //wishbone_write(UART_REG_RB, )
+
+	 wishbone_write( UART_REG_RB, ); // receiver buffer
+	 wishbone_write( UART_REG_TR, ); // transmitter
+	 wishbone_write( UART_REG_IE, ); // Interrupt enable
+	 wishbone_write( UART_REG_II, ); // Interrupt identification
+	 wishbone_write( UART_REG_FC, ); // FIFO control
+	 wishbone_write( UART_REG_LC, ); // Line Control
+	 wishbone_write( UART_REG_MC, ); // Modem control
+	 wishbone_write( UART_REG_LS, ); // Line status
+	 wishbone_write( UART_REG_MS, ); // Modem status
+	 wishbone_write( UART_REG_SR, ); // Scratch register
+	 wishbone_write( UART_REG_DL1, ); // Divisor latch bytes (1-2
+	 wishbone_write( UART_REG_DL2, );	 
+	 wishbone_write(address, $random());
 	 wishbone_read(i);
-	 delay(3);
       end
    endtask // config_uart
-      
 
+   
    //uart host to device transmit
    task UART_H2D_transmit;
       input logic [N_DATA_BITS-1:0] data;      
@@ -248,7 +288,6 @@ module uart_top_tb;
 	 // form uart 
 	 begin
 	 end
-
       join
       $finish(1);
    end
