@@ -1,11 +1,6 @@
 
-// synopsys translate_off
-`include "timescale.v"
-// synopsys translate_on
 
-// synopsys translate_off
-`include "uart_defines.v"
-// synopsys translate_on
+`include "../src/uart_defines.v"
 
 `timescale 1ns/1ns
 
@@ -196,11 +191,13 @@ module uart_top_tb;
       wb.stb=1'b0;  //chipselect
       wb.cyc=1'b0;  //valid cycle
       wait_for_ack();
+      delay(1);
    endtask // wishbone_write
 
    
    task wishbone_read;
       input logic [ADDR_W-1:0] address;
+      output logic [DATA_W-1:0] data;      
       print($sformatf("Wishbone read req from address 0x%x", address));
       @(negedge wb.clk);
       wb.address=address;
@@ -209,36 +206,64 @@ module uart_top_tb;
       wb.cyc=1'b1;  //valid cycle    
       delay(1);
       wb.stb=1'b0;  //chipselect
-      wb.cyc=1'b0;  //valid cycle    
+      wb.cyc=1'b0;  //valid cycle
       wait_for_ack();
+      data = wb.data_in;
+      print($sformatf("Wishbone data recieved 0x%x", data));
+      delay(1);
    endtask // wishbone_read
 
    
    task config_uart();
-      logic [ADDR_W-1:0] address;
+      logic [DATA_W-1:0] data;
+      int 		 devisor;
       print("Configuring UART engine");
       @(posedge wb.clk);
-      for(int i=0; i<8; i++) begin
 
-	 address = $random();
-	 //wishbone_write(UART_REG_RB, )
+      // set the line control register bit 7 to high
+      // to allow access to the devider latches
+      wishbone_read( `UART_REG_LC, data ); // Line Control
+      data |= 8'b10000000;
+      wishbone_write( `UART_REG_LC, data ); // Line Control
+      wishbone_read( `UART_REG_LC, data ); // Line Control
 
-	 wishbone_write( UART_REG_RB, ); // receiver buffer
-	 wishbone_write( UART_REG_TR, ); // transmitter
-	 wishbone_write( UART_REG_IE, ); // Interrupt enable
-	 wishbone_write( UART_REG_II, ); // Interrupt identification
-	 wishbone_write( UART_REG_FC, ); // FIFO control
-	 wishbone_write( UART_REG_LC, ); // Line Control
-	 wishbone_write( UART_REG_MC, ); // Modem control
-	 wishbone_write( UART_REG_LS, ); // Line status
-	 wishbone_write( UART_REG_MS, ); // Modem status
-	 wishbone_write( UART_REG_SR, ); // Scratch register
-	 wishbone_write( UART_REG_DL1, ); // Divisor latch bytes (1-2
-	 wishbone_write( UART_REG_DL2, );	 
+      // set devisor latches MSB first
+      // devisor = (Sys clock / (16*BaudRate))
+      wishbone_read( `UART_REG_DL2, data );
+      wishbone_read( `UART_REG_DL1, data );
+      devisor = (0.02)*(NANOSECOND)/(16*BUADRATE);
+      print($sformatf("devosor value set to 0x%x", devisor));
+      wishbone_write( `UART_REG_DL2, devisor & 32'hFF00 );	 
+      wishbone_write( `UART_REG_DL1, devisor & 32'h00FF ); // Divisor latch bytes (1-2
+      wishbone_read( `UART_REG_DL2, data );
+      wishbone_read( `UART_REG_DL1, data );
+     
+ 
+      // set the line control register bit 7 to low
+      // to deny access to the devider latches
+      wishbone_read( `UART_REG_LC, data ); // Line Control
+      data &= 8'b01111111;
+      wishbone_write( `UART_REG_LC, data ); // Line Control
+      wishbone_read( `UART_REG_LC, data ); // Line Control
+
+      
+/*	 
+	 wishbone_write( `UART_REG_RB, 0 ); // receiver buffer
+	 wishbone_write( `UART_REG_TR, 0 ); // transmitter
+	 wishbone_write( `UART_REG_IE, 0 ); // Interrupt enable
+	 wishbone_write( `UART_REG_II, 0 ); // Interrupt identification
+	 wishbone_write( `UART_REG_FC, 0 ); // FIFO control
+	 wishbone_write( `UART_REG_LC, 0 ); // Line Control
+	 wishbone_write( `UART_REG_MC, 0 ); // Modem control
+	 wishbone_write( `UART_REG_LS, 0 ); // Line status
+	 wishbone_write( `UART_REG_MS, 0 ); // Modem status
+	 wishbone_write( `UART_REG_SR, 0 ); // Scratch register
+	 wishbone_write( `UART_REG_DL1, 0 ); // Divisor latch bytes (1-2
+	 wishbone_write( `UART_REG_DL2, 0 );	 
 	 wishbone_write(address, $random());
 	 wishbone_read(i);
-      end
-   endtask // config_uart
+ */
+    endtask // config_uart
 
    
    //uart host to device transmit
