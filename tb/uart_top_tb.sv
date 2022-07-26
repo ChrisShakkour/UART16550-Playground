@@ -47,7 +47,7 @@ module uart_top_tb;
    localparam bit     PARITY_EN=0;        //[0/1] 0: disable,     1: enable
    localparam bit     SINGLE_STOP_BIT=1;  //[0/1] 0: 2 stop bits, 1: single
    localparam integer N_DATA_BITS=8;      //[5:8] can be any number between 5 and 8
-   localparam integer BUADRATE=9200;      //[] bits per sec
+   localparam integer BUADRATE=9600;      //[] bits per sec
    localparam integer NANOSECOND=1e+9;
    localparam         UART_BIT_PERIOD=(NANOSECOND/BUADRATE);
    localparam integer UART_ACK_TIMEOUT=5;
@@ -236,9 +236,8 @@ module uart_top_tb;
       wishbone_write( `UART_REG_DL2, devisor & 32'hFF00 );	 
       wishbone_write( `UART_REG_DL1, devisor & 32'h00FF ); // Divisor latch bytes (1-2
       wishbone_read( `UART_REG_DL2, data );
-      wishbone_read( `UART_REG_DL1, data );
-     
- 
+      wishbone_read( `UART_REG_DL1, data );     
+      
       // set the line control register bit 7 to low
       // to deny access to the devider latches
       wishbone_read( `UART_REG_LC, data ); // Line Control
@@ -246,24 +245,16 @@ module uart_top_tb;
       wishbone_write( `UART_REG_LC, data ); // Line Control
       wishbone_read( `UART_REG_LC, data ); // Line Control
 
+      // set the FIFO control register bits [7:6] to low
+      // to trigger interrupt
+      wishbone_write( `UART_REG_FC, 8'b00000000 ); // FIFO control
       
-/*	 
-	 wishbone_write( `UART_REG_RB, 0 ); // receiver buffer
-	 wishbone_write( `UART_REG_TR, 0 ); // transmitter
-	 wishbone_write( `UART_REG_IE, 0 ); // Interrupt enable
-	 wishbone_write( `UART_REG_II, 0 ); // Interrupt identification
-	 wishbone_write( `UART_REG_FC, 0 ); // FIFO control
-	 wishbone_write( `UART_REG_LC, 0 ); // Line Control
-	 wishbone_write( `UART_REG_MC, 0 ); // Modem control
-	 wishbone_write( `UART_REG_LS, 0 ); // Line status
-	 wishbone_write( `UART_REG_MS, 0 ); // Modem status
-	 wishbone_write( `UART_REG_SR, 0 ); // Scratch register
-	 wishbone_write( `UART_REG_DL1, 0 ); // Divisor latch bytes (1-2
-	 wishbone_write( `UART_REG_DL2, 0 );	 
-	 wishbone_write(address, $random());
-	 wishbone_read(i);
- */
-    endtask // config_uart
+      // enable interrupts
+      wishbone_read( `UART_REG_IE, data ); // Line Control
+      data |= 8'b00000001;
+      wishbone_write( `UART_REG_IE, data ); // Line Control
+      wishbone_read( `UART_REG_IE, data ); // Line Control      
+   endtask // config_uart
 
    
    //uart host to device transmit
@@ -301,12 +292,15 @@ module uart_top_tb;
 	 // THREAD 1
 	 // Async UART transmissions
 	 // from host to device 
-	 begin/*
-	    for(int i=0; i<10; i++) begin
-	       uart_bit_wait(10); 
+	 begin
+	    for(int i=10; i!=0; i--) begin
+	       logic [DATA_W-1:0] data;
+	       uart_bit_wait(3); 
 	       UART_H2D_transmit($random());
+	       uart_bit_wait(1);
+	       wishbone_read( `UART_REG_RB, data ); // Line Control
 	    end
-	 */end
+	 end
 	 
 	 // THREAD 2
 	 // waiting for interrupts 
@@ -318,3 +312,21 @@ module uart_top_tb;
    end
    
 endmodule // uart_top_tb
+
+
+/*	 
+	 wishbone_write( `UART_REG_RB, 0 ); // receiver buffer
+	 wishbone_write( `UART_REG_TR, 0 ); // transmitter
+	 wishbone_write( `UART_REG_IE, 0 ); // Interrupt enable
+	 wishbone_write( `UART_REG_II, 0 ); // Interrupt identification
+	 wishbone_write( `UART_REG_FC, 0 ); // FIFO control
+	 wishbone_write( `UART_REG_LC, 0 ); // Line Control
+	 wishbone_write( `UART_REG_MC, 0 ); // Modem control
+	 wishbone_write( `UART_REG_LS, 0 ); // Line status
+	 wishbone_write( `UART_REG_MS, 0 ); // Modem status
+	 wishbone_write( `UART_REG_SR, 0 ); // Scratch register
+	 wishbone_write( `UART_REG_DL1, 0 ); // Divisor latch bytes (1-2
+	 wishbone_write( `UART_REG_DL2, 0 );	 
+	 wishbone_write(address, $random());
+	 wishbone_read(i);
+ */
